@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>役員報酬シミュレーション｜2026年度版</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <div class="header">
+    <h1>役員報酬シミュレーション</h1>
+    <p class="subtitle">2026年度版｜法人 vs 個人事業 比較対応｜協会けんぽ（東京）</p>
+  </div>
+
+  <div class="container">
+
+    <!-- 入力フォーム -->
+    <div class="card">
+      <h2>前提条件の入力</h2>
+
+      <div class="form-grid">
+        <!-- 左カラム -->
+        <div>
+          <div class="form-group">
+            <label for="profit">想定利益（役員報酬控除前）</label>
+            <input type="text" id="profit" placeholder="例：20,000,000" value="20,000,000">
+            <span class="hint">法人の場合の役員報酬控除前の利益、個人事業の場合の事業所得（青色控除前）</span>
+          </div>
+
+          <div class="form-group" style="margin-top: 1rem;">
+            <label>年齢区分</label>
+            <div class="radio-group">
+              <label><input type="radio" name="ageGroup" value="under40"> 40歳未満</label>
+              <label><input type="radio" name="ageGroup" value="age40to64" checked> 40〜64歳</label>
+              <label><input type="radio" name="ageGroup" value="age65over"> 65歳以上</label>
+            </div>
+            <span class="hint">介護保険料の有無に影響します</span>
+          </div>
+        </div>
+
+        <!-- 右カラム -->
+        <div>
+          <div class="form-group">
+            <label>配偶者控除</label>
+            <div class="checkbox-group">
+              <input type="checkbox" id="hasSpouse">
+              <label for="hasSpouse">配偶者控除を適用する</label>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 0.8rem;">
+            <label>扶養親族の人数</label>
+            <div class="dependents-grid">
+              <div class="form-group">
+                <label for="dependentsGeneral">一般</label>
+                <input type="number" id="dependentsGeneral" value="0" min="0" max="10">
+              </div>
+              <div class="form-group">
+                <label for="dependentsSpecific">特定（19-22歳）</label>
+                <input type="number" id="dependentsSpecific" value="0" min="0" max="10">
+              </div>
+              <div class="form-group">
+                <label for="dependentsElderly">老人（70歳以上）</label>
+                <input type="number" id="dependentsElderly" value="0" min="0" max="10">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 0.8rem;">
+            <label for="otherIncome">他の所得（任意）</label>
+            <input type="text" id="otherIncome" placeholder="0" value="">
+            <span class="hint">給与所得・事業所得以外の所得がある場合</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ボタン -->
+      <div class="btn-group screen-only">
+        <button class="btn btn-primary" id="simulateBtn">シミュレーション実行</button>
+        <button class="btn btn-secondary" id="pdfBtn">PDF出力</button>
+      </div>
+    </div>
+
+    <!-- 結果セクション -->
+    <div id="resultSection">
+
+      <!-- レポート開始（PDF出力対象） -->
+      <div id="report">
+
+        <!-- PDF用ヘッダー -->
+        <div class="pdf-only" style="text-align: center; margin-bottom: 1.5rem;">
+          <h2 style="color: var(--primary); border: none; padding: 0;">役員報酬シミュレーション結果</h2>
+          <p style="color: var(--text-light); font-size: 0.85rem;">作成日: <span id="reportDate"></span></p>
+        </div>
+
+        <!-- 前提条件 -->
+        <div class="card">
+          <h3>前提条件</h3>
+          <div id="conditions"></div>
+        </div>
+
+        <!-- サマリー -->
+        <div class="card">
+          <h2>シミュレーション結果</h2>
+          <div id="summary"></div>
+        </div>
+
+        <!-- タブ付き詳細 -->
+        <div class="card">
+          <div class="tabs screen-only">
+            <button class="tab-btn active" data-tab="tabTable">一覧表</button>
+            <button class="tab-btn" data-tab="tabIndividual">個人事業</button>
+            <button class="tab-btn" data-tab="tabComparison">法人vs個人 比較</button>
+            <button class="tab-btn" data-tab="tabChart">グラフ</button>
+          </div>
+
+          <!-- 一覧表タブ -->
+          <div class="tab-content active" id="tabTable">
+            <h3>法人パターン｜役員報酬額別一覧</h3>
+            <div id="corpTable"></div>
+          </div>
+
+          <!-- 個人事業タブ -->
+          <div class="tab-content" id="tabIndividual">
+            <div id="individualResult"></div>
+          </div>
+
+          <!-- 比較タブ -->
+          <div class="tab-content" id="tabComparison">
+            <h3>法人（最適報酬額） vs 個人事業</h3>
+            <div id="comparison"></div>
+          </div>
+
+          <!-- グラフタブ -->
+          <div class="tab-content" id="tabChart">
+            <div class="chart-container">
+              <canvas id="burdenChart"></canvas>
+            </div>
+            <div class="chart-container">
+              <canvas id="breakdownChart"></canvas>
+            </div>
+            <div class="chart-container">
+              <canvas id="comparisonChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 注意事項 -->
+        <div class="footer">
+          <div class="disclaimer">
+            <strong>ご注意事項</strong>
+            <ul>
+              <li>本シミュレーションは概算値であり、実際の税額等とは異なる場合があります。</li>
+              <li>社会保険料は協会けんぽ（東京都）の2025年度料率に基づいています。</li>
+              <li>国民健康保険料は東京都特別区の料率に基づいています。</li>
+              <li>法人事業税の損金算入効果は考慮していません。</li>
+              <li>復興特別所得税（2.1%）を含んでいます。</li>
+              <li>住宅ローン控除、医療費控除等の個別の税額控除は考慮していません。</li>
+              <li>法人住民税均等割は資本金1,000万円以下・従業員50人以下を前提としています。</li>
+              <li>実際の意思決定の際は、必ず税理士にご相談ください。</li>
+            </ul>
+          </div>
+        </div>
+
+      </div><!-- /report -->
+    </div><!-- /resultSection -->
+
+  </div><!-- /container -->
+
+  <!-- JavaScript -->
+  <script src="js/taxTables.js"></script>
+  <script src="js/taxCalc.js"></script>
+  <script src="js/socialInsurance.js"></script>
+  <script src="js/simulator.js"></script>
+  <script src="js/chart.js"></script>
+  <script src="js/pdfExport.js"></script>
+  <script src="js/main.js"></script>
+
+</body>
+</html>
