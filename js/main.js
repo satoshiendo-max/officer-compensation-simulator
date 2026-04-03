@@ -74,6 +74,9 @@ function handleSimulate() {
   // シミュレーション実行
   const results = runSimulation(params);
 
+  // PDF復元用にグローバル保存
+  window._lastSimulationResults = results;
+
   // 結果表示
   displayResults(results);
 
