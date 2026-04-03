@@ -247,7 +247,7 @@ function displayCorpTable(results) {
         ).compensation;
 
     html += `
-      <tr class="${isOptimal ? "optimal-row" : ""}">
+      <tr class="${isOptimal ? "optimal-row" : ""} clickable-row" data-comp="${r.compensation}" title="クリックで計算ロジックを表示">
         <td class="num">${formatYen(r.compensation)}</td>
         <td class="num">${formatYen(r.corpTaxes.total)}</td>
         <td class="num">${formatYen(r.incomeTax)}</td>
@@ -261,8 +261,21 @@ function displayCorpTable(results) {
     `;
   }
 
-  html += `</tbody></table></div>`;
+  html += `</tbody></table></div>
+    <p class="click-hint">※ 行をクリックすると計算ロジックの詳細を表示します</p>`;
   document.getElementById("corpTable").innerHTML = html;
+
+  // 行クリックイベント
+  document.querySelectorAll(".clickable-row").forEach((row) => {
+    row.addEventListener("click", () => {
+      const comp = parseInt(row.dataset.comp);
+      const r = results.corpResults.find((r) => r.compensation === comp);
+      if (r) {
+        displayLogicDetail(r, results.params, results.individualResult);
+        switchTab("tabLogic");
+      }
+    });
+  });
 }
 
 /**
@@ -359,6 +372,171 @@ function displayComparison(results) {
     </div>
   `;
   document.getElementById("comparison").innerHTML = html;
+}
+
+/**
+ * 計算ロジック詳細を表示
+ */
+function displayLogicDetail(r, params, indResult) {
+  const profit = params.profit;
+  const monthlyComp = Math.floor(r.compensation / 12);
+  const si = r.socialInsurance;
+
+  let html = `
+    <div class="logic-detail">
+      <h3>計算ロジック詳細｜役員報酬 ${formatYen(r.compensation)} の場合</h3>
+
+      <!-- ===== STEP 1: 社会保険料 ===== -->
+      <div class="logic-section">
+        <h4>STEP 1. 社会保険料の計算</h4>
+        <table class="logic-table">
+          <tr class="logic-formula"><td colspan="3">月額報酬 = ${formatYen(r.compensation)} / 12 = <strong>${formatYen(monthlyComp)}</strong></td></tr>
+          <tr class="logic-formula"><td colspan="3">健保 標準報酬月額 = <strong>${formatYen(si.healthStandardMonthly)}</strong>（等級表より）</td></tr>
+          <tr class="logic-formula"><td colspan="3">厚年 標準報酬月額 = <strong>${formatYen(si.pensionStandardMonthly)}</strong>（等級表より、上限65万円）</td></tr>
+          <tr><td></td><td class="logic-head">個人負担（年額）</td><td class="logic-head">会社負担（年額）</td></tr>
+          <tr>
+            <td>健康保険料</td>
+            <td class="num">${formatYen(si.healthStandardMonthly)} x ${HEALTH_INSURANCE.halfRate} x 12 = ${formatYen(si.healthEmployee)}</td>
+            <td class="num">${formatYen(si.healthEmployer)}</td>
+          </tr>
+          ${si.nursingEmployee > 0 ? `
+          <tr>
+            <td>介護保険料</td>
+            <td class="num">${formatYen(si.healthStandardMonthly)} x ${HEALTH_INSURANCE.nursingHalfRate} x 12 = ${formatYen(si.nursingEmployee)}</td>
+            <td class="num">${formatYen(si.nursingEmployer)}</td>
+          </tr>` : `
+          <tr><td>介護保険料</td><td class="num">対象外（年齢区分）</td><td class="num">-</td></tr>`}
+          <tr>
+            <td>厚生年金保険料</td>
+            <td class="num">${formatYen(si.pensionStandardMonthly)} x ${PENSION_INSURANCE.halfRate} x 12 = ${formatYen(si.pensionEmployee)}</td>
+            <td class="num">${formatYen(si.pensionEmployer)}</td>
+          </tr>
+          <tr class="total-row">
+            <td><strong>社保合計</strong></td>
+            <td class="num"><strong>${formatYen(si.totalEmployee)}</strong></td>
+            <td class="num"><strong>${formatYen(si.totalEmployer)}</strong></td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- ===== STEP 2: 法人税等 ===== -->
+      <div class="logic-section">
+        <h4>STEP 2. 法人所得・法人税等の計算</h4>
+        <table class="logic-table">
+          <tr class="logic-formula"><td colspan="2">法人所得 = 想定利益 - 役員報酬 - 社保会社負担</td></tr>
+          <tr class="logic-formula"><td colspan="2">= ${formatYen(profit)} - ${formatYen(r.compensation)} - ${formatYen(si.totalEmployer)} = <strong>${formatYen(r.corpIncome)}</strong></td></tr>
+          <tr><td></td><td></td></tr>
+          <tr>
+            <td>法人税${r.corpIncome <= 8000000 ? "（800万以下: 15%）" : "（800万以下15% + 超過23.2%）"}</td>
+            <td class="num">${formatYen(r.corpTaxes.corpTax)}</td>
+          </tr>
+          <tr>
+            <td>地方法人税（法人税額 x 10.3%）</td>
+            <td class="num">${formatYen(r.corpTaxes.corpTax)} x 10.3% = ${formatYen(r.corpTaxes.localCorpTax)}</td>
+          </tr>
+          <tr>
+            <td>法人住民税 法人税割（法人税額 x 7%）</td>
+            <td class="num">${formatYen(r.corpTaxes.corpTax)} x 7% = ${formatYen(r.corpTaxes.municipalIncomeTax)}</td>
+          </tr>
+          <tr>
+            <td>法人住民税 均等割</td>
+            <td class="num">${formatYen(r.corpTaxes.municipalPerCapita)}</td>
+          </tr>
+          <tr>
+            <td>法人事業税${r.corpIncome <= 4000000 ? "（400万以下: 3.5%）" : r.corpIncome <= 8000000 ? "（400万以下3.5% + 超過5.3%）" : "（400万以下3.5% + 800万以下5.3% + 超過7.0%）"}</td>
+            <td class="num">${formatYen(r.corpTaxes.businessTax)}</td>
+          </tr>
+          <tr>
+            <td>特別法人事業税（事業税額 x 37%）</td>
+            <td class="num">${formatYen(r.corpTaxes.businessTax)} x 37% = ${formatYen(r.corpTaxes.specialBusinessTax)}</td>
+          </tr>
+          <tr class="total-row">
+            <td><strong>法人税等 合計</strong></td>
+            <td class="num"><strong>${formatYen(r.corpTaxes.total)}</strong></td>
+          </tr>
+          <tr class="net-row">
+            <td><strong>法人内部留保（税引後）</strong></td>
+            <td class="num"><strong>${formatYen(r.corpIncome)} - ${formatYen(r.corpTaxes.total)} = ${formatYen(r.corpRetainedEarnings)}</strong></td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- ===== STEP 3: 個人の所得税・住民税 ===== -->
+      <div class="logic-section">
+        <h4>STEP 3. 個人の所得税・住民税の計算</h4>
+        <table class="logic-table">
+          <tr class="logic-formula"><td colspan="2">給与所得控除 = <strong>${formatYen(r.salaryDeduction)}</strong>（給与所得控除表より）</td></tr>
+          <tr class="logic-formula"><td colspan="2">給与所得 = ${formatYen(r.compensation)} - ${formatYen(r.salaryDeduction)} = <strong>${formatYen(r.salaryIncome)}</strong></td></tr>
+          <tr><td></td><td></td></tr>
+          <tr><td colspan="2"><strong>【所得控除の内訳】</strong></td></tr>
+          <tr>
+            <td>基礎控除</td>
+            <td class="num">${formatYen(DEDUCTIONS.basic)}</td>
+          </tr>
+          ${params.hasSpouse ? `<tr><td>配偶者控除</td><td class="num">${formatYen(DEDUCTIONS.spouseRegular)}</td></tr>` : ""}
+          ${params.dependentsGeneral > 0 ? `<tr><td>一般扶養控除（${params.dependentsGeneral}人）</td><td class="num">${formatYen(DEDUCTIONS.dependentGeneral)} x ${params.dependentsGeneral} = ${formatYen(DEDUCTIONS.dependentGeneral * params.dependentsGeneral)}</td></tr>` : ""}
+          ${params.dependentsSpecific > 0 ? `<tr><td>特定扶養控除（${params.dependentsSpecific}人）</td><td class="num">${formatYen(DEDUCTIONS.dependentSpecific)} x ${params.dependentsSpecific} = ${formatYen(DEDUCTIONS.dependentSpecific * params.dependentsSpecific)}</td></tr>` : ""}
+          ${params.dependentsElderly > 0 ? `<tr><td>老人扶養控除（${params.dependentsElderly}人）</td><td class="num">${formatYen(DEDUCTIONS.dependentElderly)} x ${params.dependentsElderly} = ${formatYen(DEDUCTIONS.dependentElderly * params.dependentsElderly)}</td></tr>` : ""}
+          <tr>
+            <td>社会保険料控除</td>
+            <td class="num">${formatYen(si.totalEmployee)}</td>
+          </tr>
+          <tr class="total-row">
+            <td><strong>所得控除 合計</strong></td>
+            <td class="num"><strong>${formatYen(r.personalDeductions)}</strong></td>
+          </tr>
+          <tr><td></td><td></td></tr>
+          <tr class="logic-formula"><td colspan="2">課税所得 = ${formatYen(r.salaryIncome)}${params.otherIncome > 0 ? " + " + formatYen(params.otherIncome) : ""} - ${formatYen(r.personalDeductions)} = <strong>${formatYen(r.taxableIncome)}</strong></td></tr>
+          <tr><td></td><td></td></tr>
+          <tr>
+            <td>所得税（税率表より）x 1.021（復興税）</td>
+            <td class="num"><strong>${formatYen(r.incomeTax)}</strong></td>
+          </tr>
+          <tr>
+            <td>住民税（${formatYen(r.taxableIncome)} x 10% + 均等割5,000円）</td>
+            <td class="num"><strong>${formatYen(r.residentTax)}</strong></td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- ===== STEP 4: 合計 ===== -->
+      <div class="logic-section">
+        <h4>STEP 4. 合計負担額・手取り</h4>
+        <table class="logic-table">
+          <tr>
+            <td>法人税等</td>
+            <td class="num">${formatYen(r.corpTaxes.total)}</td>
+          </tr>
+          <tr>
+            <td>所得税</td>
+            <td class="num">${formatYen(r.incomeTax)}</td>
+          </tr>
+          <tr>
+            <td>住民税</td>
+            <td class="num">${formatYen(r.residentTax)}</td>
+          </tr>
+          <tr>
+            <td>社保（会社負担 + 個人負担）</td>
+            <td class="num">${formatYen(si.totalEmployer)} + ${formatYen(si.totalEmployee)} = ${formatYen(si.grandTotal)}</td>
+          </tr>
+          <tr class="total-row">
+            <td><strong>合計負担額</strong></td>
+            <td class="num"><strong>${formatYen(r.totalBurden)}</strong></td>
+          </tr>
+          <tr class="net-row">
+            <td><strong>個人手取り</strong>（報酬 - 所得税 - 住民税 - 社保個人負担）</td>
+            <td class="num"><strong>${formatYen(r.netIncome)}</strong></td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="logic-back">
+        <button class="btn btn-secondary" onclick="switchTab('tabTable')">一覧表に戻る</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("logicDetail").innerHTML = html;
 }
 
 /**

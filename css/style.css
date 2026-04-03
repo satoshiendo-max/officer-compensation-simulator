@@ -452,6 +452,93 @@ body {
   color: #742a2a;
 }
 
+/* ===== クリック可能な行 ===== */
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background-color: #dbeafe !important;
+}
+
+.click-hint {
+  font-size: 0.75rem;
+  color: var(--text-light);
+  margin-top: 0.5rem;
+  text-align: right;
+}
+
+/* ===== 計算ロジック ===== */
+.logic-detail h3 {
+  color: var(--primary);
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--primary);
+}
+
+.logic-section {
+  margin-bottom: 2rem;
+  padding: 1.2rem;
+  background: var(--bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.logic-section h4 {
+  color: var(--primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  padding-left: 0.5rem;
+  border-left: 4px solid var(--primary);
+}
+
+.logic-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.logic-table td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.logic-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.logic-table td.logic-head {
+  text-align: right;
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 0.8rem;
+}
+
+.logic-table .logic-formula td {
+  background: #edf2f7;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  padding: 0.5rem 0.8rem;
+}
+
+.logic-table .total-row td {
+  background-color: #edf2f7;
+  border-top: 2px solid var(--primary);
+}
+
+.logic-table .net-row td {
+  background-color: #f0fff4;
+}
+
+.logic-back {
+  text-align: center;
+  margin-top: 1.5rem;
+}
+
 /* ===== 個人事業結果 ===== */
 .individual-result h4 {
   color: var(--primary);
