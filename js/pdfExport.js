@@ -13,64 +13,68 @@ function exportPDF() {
     return;
   }
 
-  // 1. Chart.jsのcanvasを画像に変換してDOMから一時的に差し替え
-  const chartContainers = element.querySelectorAll(".chart-container");
-  const restoreData = [];
+  // 1. グラフタブを表示してChart.jsの描画を保証
+  switchTab("tabChart");
 
-  chartContainers.forEach((container) => {
-    const canvas = container.querySelector("canvas");
-    if (canvas) {
-      const chartInstance = Chart.getChart(canvas);
-      if (chartInstance) {
-        // canvasの内容を画像として取得
-        const imgSrc = chartInstance.toBase64Image("image/png", 1.0);
-        // 元のHTMLを保存
-        const originalHTML = container.innerHTML;
-        // canvasをimg要素に完全に置き換え
-        container.innerHTML = `<img src="${imgSrc}" style="width:100%; max-height:380px; object-fit:contain;">`;
-        restoreData.push({ container, originalHTML, chartInstance });
-      }
-    }
-  });
-
-  // 2. 全タブを表示状態にする
-  element.classList.add("pdf-exporting");
-
-  // 3. 少し待ってからPDF生成
   setTimeout(() => {
-    const opt = {
-      margin: [10, 10, 15, 10],
-      filename: `役員報酬シミュレーション_${formatDate(new Date())}.pdf`,
-      image: { type: "jpeg", quality: 0.95 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        letterRendering: true,
-        logging: false,
-      },
-      jsPDF: {
-        unit: "mm",
-        format: "a4",
-        orientation: "portrait",
-      },
-      pagebreak: { mode: ["avoid-all", "css", "legacy"] },
-    };
+    // 2. Chart.jsのcanvasを画像に変換してDOMから一時的に差し替え
+    const chartContainers = element.querySelectorAll(".chart-container");
+    const restoreData = [];
 
-    html2pdf()
-      .set(opt)
-      .from(element)
-      .save()
-      .then(() => {
-        restoreChartsAfterPDF(restoreData);
-        element.classList.remove("pdf-exporting");
-      })
-      .catch((err) => {
-        restoreChartsAfterPDF(restoreData);
-        element.classList.remove("pdf-exporting");
-        console.error("PDF出力エラー:", err);
-        alert("PDF出力中にエラーが発生しました。");
-      });
-  }, 500);
+    chartContainers.forEach((container) => {
+      const canvas = container.querySelector("canvas");
+      if (canvas) {
+        const chartInstance = Chart.getChart(canvas);
+        if (chartInstance) {
+          const imgSrc = chartInstance.toBase64Image("image/png", 1.0);
+          const originalHTML = container.innerHTML;
+          container.innerHTML = `<img src="${imgSrc}" style="width:100%; max-height:380px; object-fit:contain;">`;
+          restoreData.push({ container, originalHTML });
+        }
+      }
+    });
+
+    // 3. 全タブを表示状態にする
+    element.classList.add("pdf-exporting");
+
+    // 4. PDF生成
+    setTimeout(() => {
+      const opt = {
+        margin: [10, 10, 15, 10],
+        filename: `役員報酬シミュレーション_${formatDate(new Date())}.pdf`,
+        image: { type: "jpeg", quality: 0.95 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          letterRendering: true,
+          logging: false,
+        },
+        jsPDF: {
+          unit: "mm",
+          format: "a4",
+          orientation: "portrait",
+        },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+      };
+
+      html2pdf()
+        .set(opt)
+        .from(element)
+        .save()
+        .then(() => {
+          restoreChartsAfterPDF(restoreData);
+          element.classList.remove("pdf-exporting");
+          switchTab("tabTable");
+        })
+        .catch((err) => {
+          restoreChartsAfterPDF(restoreData);
+          element.classList.remove("pdf-exporting");
+          switchTab("tabTable");
+          console.error("PDF出力エラー:", err);
+          alert("PDF出力中にエラーが発生しました。");
+        });
+    }, 500);
+  }, 300);
 }
 
 /**

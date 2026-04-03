@@ -83,8 +83,32 @@ function handleSimulate() {
   // 結果エリアを表示
   document.getElementById("resultSection").style.display = "block";
 
-  // 結果エリアにスクロール
-  document.getElementById("resultSection").scrollIntoView({ behavior: "smooth" });
+  // 全タブを一巡してグラフを描画させる（PDF出力用）
+  ensureAllChartsRendered(() => {
+    // 一覧表タブに戻す
+    switchTab("tabTable");
+    // 結果エリアにスクロール
+    document.getElementById("resultSection").scrollIntoView({ behavior: "smooth" });
+  });
+}
+
+/**
+ * 全タブを順番に表示してChart.jsを描画させる
+ */
+function ensureAllChartsRendered(callback) {
+  const tabs = ["tabTable", "tabIndividual", "tabComparison", "tabChart"];
+  let i = 0;
+
+  function showNext() {
+    if (i < tabs.length) {
+      switchTab(tabs[i]);
+      i++;
+      setTimeout(showNext, 50);
+    } else {
+      if (callback) callback();
+    }
+  }
+  showNext();
 }
 
 /**
