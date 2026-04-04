@@ -5,6 +5,7 @@
 let burdenChart = null;
 let breakdownChart = null;
 let comparisonChart = null;
+let bonusSavingChart = null;
 
 /**
  * 数値をフォーマット（万円表示）
@@ -234,6 +235,93 @@ function renderComparisonChart(results) {
         y: {
           stacked: true,
           ticks: { callback: (v) => v + "万" },
+        },
+      },
+    },
+  });
+}
+
+/**
+ * 賞与活用による節約額グラフ
+ */
+function renderBonusSavingChart(results) {
+  const ctx = document.getElementById("bonusSavingChart");
+  if (!ctx) return;
+
+  if (bonusSavingChart) {
+    bonusSavingChart.destroy();
+  }
+
+  const bonusResults = window._lastBonusResults;
+  if (!bonusResults || bonusResults.length === 0) return;
+
+  const labels = bonusResults.map((r) => toMan(r.totalComp) + "万");
+  const savingData = bonusResults.map((r) => toMan(r.saving));
+  const monthlyOnlySI = bonusResults.map((r) => toMan(r.monthlyOnly.socialInsurance.grandTotal));
+  const bonusSI = bonusResults.map((r) =>
+    r.bestBonus ? toMan(r.bestBonus.socialInsurance.grandTotal) : toMan(r.monthlyOnly.socialInsurance.grandTotal)
+  );
+
+  bonusSavingChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "月額のみ 社保合計",
+          data: monthlyOnlySI,
+          backgroundColor: "rgba(220, 53, 69, 0.6)",
+          borderColor: "rgba(220, 53, 69, 1)",
+          borderWidth: 1,
+          order: 2,
+        },
+        {
+          label: "賞与活用 社保合計",
+          data: bonusSI,
+          backgroundColor: "rgba(40, 167, 69, 0.6)",
+          borderColor: "rgba(40, 167, 69, 1)",
+          borderWidth: 1,
+          order: 2,
+        },
+        {
+          label: "節約額",
+          data: savingData,
+          type: "line",
+          borderColor: "#f59e0b",
+          backgroundColor: "rgba(245, 158, 11, 0.1)",
+          borderWidth: 3,
+          pointRadius: 5,
+          pointBackgroundColor: "#f59e0b",
+          fill: true,
+          yAxisID: "y1",
+          order: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: {
+          display: true,
+          text: "賞与活用による社会保険料の比較（万円）",
+          font: { size: 14 },
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()}万円`,
+          },
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: "社保合計（万円）" },
+        },
+        y1: {
+          position: "right",
+          beginAtZero: true,
+          title: { display: true, text: "節約額（万円）" },
+          grid: { drawOnChartArea: false },
         },
       },
     },

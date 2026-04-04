@@ -8,8 +8,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document
     .getElementById("simulateBtn")
     .addEventListener("click", handleSimulate);
-  document.getElementById("pdfBtn").addEventListener("click", exportPDF);
-
   // タブ切り替え
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
@@ -17,6 +15,20 @@ document.addEventListener("DOMContentLoaded", () => {
       switchTab(tabId);
     });
   });
+
+  // 賞与スライダー
+  document.getElementById("monthlySlider").addEventListener("input", updateBonusCustom);
+  document.getElementById("bonusTotalComp").addEventListener("blur", (e) => {
+    const val = parseInt(e.target.value.replace(/,/g, ""));
+    if (!isNaN(val)) {
+      e.target.value = val.toLocaleString();
+    }
+    updateBonusCustom();
+  });
+  document.getElementById("bonusTotalComp").addEventListener("focus", (e) => {
+    e.target.value = e.target.value.replace(/,/g, "");
+  });
+  document.getElementById("bonusCount").addEventListener("change", updateBonusCustom);
 
   // 金額入力のフォーマット
   document.getElementById("profit").addEventListener("blur", (e) => {
@@ -96,7 +108,7 @@ function handleSimulate() {
  * 全タブを順番に表示してChart.jsを描画させる
  */
 function ensureAllChartsRendered(callback) {
-  const tabs = ["tabTable", "tabIndividual", "tabComparison", "tabChart"];
+  const tabs = ["tabTable", "tabIndividual", "tabComparison", "tabBonus", "tabChart"];
   let i = 0;
 
   function showNext() {
@@ -119,15 +131,20 @@ function displayResults(results) {
   displayCorpTable(results);
   displayIndividualResult(results);
   displayComparison(results);
+  displayBonusSimulation(results);
   renderBurdenChart(results);
   renderBreakdownChart(results);
   renderComparisonChart(results);
+  renderBonusSavingChart(results);
+
+  // 賞与カスタムに最適額をプリセット
+  document.getElementById("bonusTotalComp").value = results.optimal.compensation.toLocaleString();
+  document.getElementById("monthlySlider").value = 50;
+  updateBonusCustom();
 
   // 前提条件を表示
   displayConditions(results.params);
 
-  // PDF用の日付
-  document.getElementById("reportDate").textContent = new Date().toLocaleDateString("ja-JP");
 }
 
 /**
@@ -372,6 +389,180 @@ function displayComparison(results) {
     </div>
   `;
   document.getElementById("comparison").innerHTML = html;
+}
+
+/**
+ * 賞与カスタムシミュレーション更新（スライダー変更時）
+ */
+function updateBonusCustom() {
+  const params = window._lastSimulationResults?.params;
+  if (!params) return;
+
+  const totalStr = document.getElementById("bonusTotalComp").value.replace(/,/g, "");
+  const totalComp = parseInt(totalStr);
+  if (isNaN(totalComp) || totalComp <= 0) {
+    document.getElementById("bonusCustomResult").innerHTML = "";
+    document.getElementById("monthlyLabel").textContent = "-";
+    document.getElementById("bonusLabel").textContent = "-";
+    return;
+  }
+
+  const sliderVal = parseInt(document.getElementById("monthlySlider").value);
+  const bonusCount = parseInt(document.getElementById("bonusCount").value);
+
+  // スライダー値（0-100）を月額報酬に変換
+  // 0 = 最低月額10万円、100 = 全額月額（賞与なし）
+  const maxMonthly = Math.floor(totalComp / 12);
+  const minMonthly = 100000;
+  const monthlyComp = Math.max(minMonthly, Math.floor(minMonthly + (maxMonthly - minMonthly) * (sliderVal / 100)));
+  const bonusTotal = totalComp - monthlyComp * 12;
+
+  // ラベル更新
+  document.getElementById("monthlyLabel").textContent = formatYen(monthlyComp) + "/月";
+  document.getElementById("bonusLabel").textContent = bonusTotal > 0
+    ? formatYen(bonusTotal) + (bonusCount === 2 ? "（" + formatYen(Math.floor(bonusTotal / 2)) + " x 2回）" : "（年1回）")
+    : "なし";
+
+  // 月額のみパターン
+  const monthlyOnly = simulateCorp(params, totalComp);
+
+  // 賞与ありパターン
+  let bonusResult = null;
+  if (bonusTotal > 0) {
+    bonusResult = simulateCorpWithBonus(params, totalComp, monthlyComp, bonusTotal, bonusCount);
+  }
+
+  const saving = bonusResult ? monthlyOnly.totalBurden - bonusResult.totalBurden : 0;
+  const siSaving = bonusResult ? monthlyOnly.socialInsurance.grandTotal - bonusResult.socialInsurance.grandTotal : 0;
+
+  let html = `<div class="custom-comparison">`;
+
+  // 月額のみカード
+  html += `
+    <div class="custom-card monthly-only">
+      <h5>パターンA：月額報酬のみ（${formatYen(Math.floor(totalComp / 12))}/月）</h5>
+      <div class="detail-row"><span>月額報酬</span><span>${formatYen(Math.floor(totalComp / 12))}/月</span></div>
+      <div class="detail-row"><span>賞与</span><span>なし</span></div>
+      <div class="detail-row"><span>社保（会社）</span><span>${formatYen(monthlyOnly.socialInsurance.totalEmployer)}</span></div>
+      <div class="detail-row"><span>社保（個人）</span><span>${formatYen(monthlyOnly.socialInsurance.totalEmployee)}</span></div>
+      <div class="detail-row"><span>社保合計</span><span>${formatYen(monthlyOnly.socialInsurance.grandTotal)}</span></div>
+      <div class="detail-row"><span>法人税等</span><span>${formatYen(monthlyOnly.corpTaxes.total)}</span></div>
+      <div class="detail-row"><span>所得税</span><span>${formatYen(monthlyOnly.incomeTax)}</span></div>
+      <div class="detail-row"><span>住民税</span><span>${formatYen(monthlyOnly.residentTax)}</span></div>
+      <div class="detail-row total"><span>合計負担</span><span>${formatYen(monthlyOnly.totalBurden)}</span></div>
+      <div class="detail-row total"><span>個人手取り</span><span>${formatYen(monthlyOnly.netIncome)}</span></div>
+    </div>
+  `;
+
+  // 賞与ありカード
+  if (bonusResult) {
+    html += `
+      <div class="custom-card with-bonus">
+        <h5>パターンB：月額＋賞与（${formatYen(monthlyComp)}/月 + 賞与${formatYen(bonusTotal)}）</h5>
+        <div class="detail-row"><span>月額報酬</span><span>${formatYen(monthlyComp)}/月</span></div>
+        <div class="detail-row"><span>賞与</span><span>${formatYen(bonusTotal)}${bonusCount === 2 ? "（x2回）" : "（年1回）"}</span></div>
+        <div class="detail-row"><span>社保（会社）</span><span>${formatYen(bonusResult.socialInsurance.totalEmployer)}</span></div>
+        <div class="detail-row"><span>社保（個人）</span><span>${formatYen(bonusResult.socialInsurance.totalEmployee)}</span></div>
+        <div class="detail-row"><span>社保合計</span><span>${formatYen(bonusResult.socialInsurance.grandTotal)}</span></div>
+        <div class="detail-row"><span>法人税等</span><span>${formatYen(bonusResult.corpTaxes.total)}</span></div>
+        <div class="detail-row"><span>所得税</span><span>${formatYen(bonusResult.incomeTax)}</span></div>
+        <div class="detail-row"><span>住民税</span><span>${formatYen(bonusResult.residentTax)}</span></div>
+        <div class="detail-row total"><span>合計負担</span><span>${formatYen(bonusResult.totalBurden)}</span></div>
+        <div class="detail-row total"><span>個人手取り</span><span>${formatYen(bonusResult.netIncome)}</span></div>
+      </div>
+    `;
+  }
+
+  html += `</div>`;
+
+  // 節約額バナー
+  if (bonusResult) {
+    if (saving > 0) {
+      html += `
+        <div class="saving-banner positive">
+          賞与活用で年間 ${formatYen(saving)} の負担軽減（うち社保節約 ${formatYen(siSaving)}）
+        </div>`;
+    } else if (saving < 0) {
+      html += `
+        <div class="saving-banner negative">
+          この配分では負担が ${formatYen(Math.abs(saving))} 増加します
+        </div>`;
+    } else {
+      html += `<div class="saving-banner" style="background:#f3f4f6;color:#6b7280;border-color:#d1d5db;">差額なし</div>`;
+    }
+  }
+
+  document.getElementById("bonusCustomResult").innerHTML = html;
+}
+
+/**
+ * 賞与活用シミュレーション結果を表示
+ */
+function displayBonusSimulation(results) {
+  const bonusResults = runBonusSimulation(results.params);
+  // グラフ用にグローバル保存
+  window._lastBonusResults = bonusResults;
+
+  let html = `
+    <div class="table-wrapper">
+      <table class="result-table">
+        <thead>
+          <tr>
+            <th rowspan="2">年間総額</th>
+            <th colspan="3" class="group-header-a">月額報酬のみ</th>
+            <th colspan="5" class="group-header-b">賞与活用（最適配分）</th>
+            <th rowspan="2">年間<br>節約額</th>
+          </tr>
+          <tr>
+            <th class="sub-header-a">社保合計</th>
+            <th class="sub-header-a">合計負担</th>
+            <th class="sub-header-a">手取り</th>
+            <th class="sub-header-b">月額報酬</th>
+            <th class="sub-header-b">賞与額</th>
+            <th class="sub-header-b">社保合計</th>
+            <th class="sub-header-b">合計負担</th>
+            <th class="sub-header-b">手取り</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  for (const r of bonusResults) {
+    const hasSaving = r.bestBonus && r.saving > 0;
+    html += `
+      <tr class="${hasSaving ? '' : 'no-saving'}">
+        <td class="num">${formatYen(r.totalComp)}</td>
+        <td class="num">${formatYen(r.monthlyOnly.socialInsurance.grandTotal)}</td>
+        <td class="num">${formatYen(r.monthlyOnly.totalBurden)}</td>
+        <td class="num">${formatYen(r.monthlyOnly.netIncome)}</td>
+        ${hasSaving ? `
+          <td class="num">${formatYen(r.bestBonus.monthlyComp)}/月</td>
+          <td class="num">${formatYen(r.bestBonus.bonusTotal)}</td>
+          <td class="num">${formatYen(r.bestBonus.socialInsurance.grandTotal)}</td>
+          <td class="num">${formatYen(r.bestBonus.totalBurden)}</td>
+          <td class="num">${formatYen(r.bestBonus.netIncome)}</td>
+          <td class="num saving">${formatYen(r.saving)}</td>
+        ` : `
+          <td class="num" colspan="5">社保上限未達のため節約効果なし</td>
+          <td class="num">-</td>
+        `}
+      </tr>
+    `;
+  }
+
+  html += `</tbody></table></div>
+    <div class="bonus-notes">
+      <p><strong>※ 事前確定届出給与の注意点</strong></p>
+      <ul>
+        <li>株主総会の決議後、所轄税務署に届出が必要です（届出期限あり）</li>
+        <li>届出通りの金額・時期で支給しないと全額損金不算入になります</li>
+        <li>届出額と異なる支給は1円でも全額否認されるリスクがあります</li>
+        <li>厚生年金の標準賞与額上限は1回150万円、健康保険は年度累計573万円です</li>
+      </ul>
+    </div>
+  `;
+
+  document.getElementById("bonusTable").innerHTML = html;
 }
 
 /**

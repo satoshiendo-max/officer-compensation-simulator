@@ -65,6 +65,122 @@ function simulateCorp(params, compensation) {
 }
 
 /**
+ * 法人パターン（賞与あり）のシミュレーション
+ * 年間総額を月額報酬＋賞与に分けて計算
+ */
+function simulateCorpWithBonus(params, totalAnnualComp, monthlyComp, bonusTotal, bonusCount) {
+  const { profit, ageGroup, hasSpouse, dependentsGeneral, dependentsSpecific, dependentsElderly, otherIncome } = params;
+
+  // 1. 社会保険料（賞与あり版）
+  const socialInsurance = calcSocialInsuranceWithBonus(monthlyComp, bonusTotal, bonusCount, ageGroup);
+
+  // 2. 法人所得（利益 - 総報酬額 - 社保会社負担分）
+  const corpIncome = Math.max(profit - totalAnnualComp - socialInsurance.totalEmployer, 0);
+
+  // 3. 法人税等
+  const corpTaxes = calcCorpTax(corpIncome);
+
+  // 4. 給与所得（月額報酬+賞与の合計に対して給与所得控除）
+  const salaryDeduction = calcSalaryDeduction(totalAnnualComp);
+  const salaryIncome = Math.max(totalAnnualComp - salaryDeduction, 0);
+
+  // 5. 所得控除
+  const personalDeductions = calcPersonalDeductions({
+    hasSpouse,
+    dependentsGeneral: dependentsGeneral || 0,
+    dependentsSpecific: dependentsSpecific || 0,
+    dependentsElderly: dependentsElderly || 0,
+    socialInsurance: socialInsurance.totalEmployee,
+  });
+
+  // 6. 課税所得
+  const taxableIncome = Math.max(salaryIncome + (otherIncome || 0) - personalDeductions, 0);
+
+  // 7. 所得税（復興特別所得税含む）
+  const incomeTax = calcIncomeTax(taxableIncome);
+
+  // 8. 住民税
+  const residentTax = calcResidentTax(taxableIncome);
+
+  // 9. 合計負担
+  const totalBurden = corpTaxes.total + incomeTax + residentTax + socialInsurance.grandTotal;
+
+  // 10. 手取り
+  const netIncome = totalAnnualComp - incomeTax - residentTax - socialInsurance.totalEmployee;
+
+  return {
+    compensation: totalAnnualComp,
+    monthlyComp,
+    bonusTotal,
+    bonusCount,
+    corpIncome,
+    corpTaxes,
+    salaryDeduction,
+    salaryIncome,
+    personalDeductions,
+    taxableIncome,
+    incomeTax,
+    residentTax,
+    socialInsurance,
+    totalBurden,
+    netIncome,
+    corpRetainedEarnings: corpIncome - corpTaxes.total,
+  };
+}
+
+/**
+ * 賞与活用シミュレーション
+ * 同じ年間総額で「月額のみ」vs「月額+賞与」を比較
+ */
+function runBonusSimulation(params) {
+  const { profit } = params;
+  const results = [];
+
+  // 年間総額を500万〜利益まで、100万円刻みで
+  const step = 1000000;
+  const minComp = 5000000;
+
+  for (let totalComp = minComp; totalComp <= profit; totalComp += step) {
+    // パターン1: 月額のみ（ベースライン）
+    const monthlyOnly = simulateCorp(params, totalComp);
+
+    // パターン2〜: 月額を下げて賞与に回す
+    // 月額報酬の候補（低い順）
+    const monthlyOptions = [];
+    for (let m = 100000; m <= Math.floor(totalComp / 12); m += 50000) {
+      const bonus = totalComp - m * 12;
+      if (bonus > 0) {
+        monthlyOptions.push({ monthly: m, bonus });
+      }
+    }
+
+    // 最も社保が安くなるパターンを探索
+    let bestBonus = null;
+    let bestSaving = 0;
+
+    for (const opt of monthlyOptions) {
+      const bonusResult = simulateCorpWithBonus(
+        params, totalComp, opt.monthly, opt.bonus, 1
+      );
+      const saving = monthlyOnly.totalBurden - bonusResult.totalBurden;
+      if (saving > bestSaving) {
+        bestSaving = saving;
+        bestBonus = bonusResult;
+      }
+    }
+
+    results.push({
+      totalComp,
+      monthlyOnly,
+      bestBonus,
+      saving: bestSaving,
+    });
+  }
+
+  return results;
+}
+
+/**
  * 個人事業パターンのシミュレーション
  */
 function simulateIndividual(params) {

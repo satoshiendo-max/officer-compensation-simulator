@@ -202,6 +202,12 @@ const DEDUCTIONS = {
   dependentElderly: 480000, // 老人扶養控除（70歳以上）
 };
 
+// ===== 賞与の社会保険料上限 =====
+const BONUS_INSURANCE = {
+  healthAnnualCap: 5730000,   // 健康保険：年度累計上限（573万円）
+  pensionPerBonusCap: 1500000, // 厚生年金：1回あたり上限（150万円）
+};
+
 // ===== 年齢区分 =====
 const AGE_GROUP = {
   UNDER_40: "under40",

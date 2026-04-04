@@ -452,6 +452,204 @@ body {
   color: #742a2a;
 }
 
+/* ===== 賞与活用タブ ===== */
+.bonus-desc {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin-bottom: 1rem;
+  line-height: 1.8;
+}
+
+.group-header-a {
+  background-color: #fee2e2;
+  color: #991b1b;
+  text-align: center;
+}
+
+.group-header-b {
+  background-color: #dcfce7;
+  color: #166534;
+  text-align: center;
+}
+
+.sub-header-a {
+  background-color: #fef2f2;
+}
+
+.sub-header-b {
+  background-color: #f0fdf4;
+}
+
+.result-table td.saving {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.no-saving {
+  opacity: 0.6;
+}
+
+.bonus-notes {
+  margin-top: 1.2rem;
+  padding: 1rem;
+  background: #fffbeb;
+  border: 1px solid #fbbf24;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+}
+
+.bonus-notes p {
+  margin-bottom: 0.5rem;
+  color: #92400e;
+}
+
+.bonus-notes ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: #78350f;
+}
+
+.bonus-notes li {
+  margin-bottom: 0.3rem;
+}
+
+/* ===== 賞与カスタムシミュレーション ===== */
+.card-inner {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.2rem;
+  margin-bottom: 1.5rem;
+}
+
+.card-inner h4 {
+  color: var(--primary);
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.bonus-input-grid {
+  display: grid;
+  grid-template-columns: 1fr 150px;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.slider-group {
+  margin-bottom: 1rem;
+}
+
+.slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #22c55e, #eab308, #ef4444);
+  outline: none;
+  margin: 0.8rem 0 0.4rem;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-light);
+}
+
+#bonusCustomResult .custom-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.custom-card {
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.custom-card.monthly-only {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.custom-card.with-bonus {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.custom-card h5 {
+  margin-bottom: 0.8rem;
+  font-size: 0.85rem;
+}
+
+.custom-card .detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.3rem 0;
+  font-size: 0.8rem;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+
+.custom-card .detail-row.total {
+  border-top: 2px solid currentColor;
+  border-bottom: none;
+  font-weight: 700;
+  padding-top: 0.5rem;
+  margin-top: 0.3rem;
+}
+
+.saving-banner {
+  text-align: center;
+  padding: 0.8rem;
+  margin-top: 1rem;
+  border-radius: var(--radius);
+  font-weight: 700;
+}
+
+.saving-banner.positive {
+  background: #dcfce7;
+  color: #166534;
+  border: 2px solid #22c55e;
+}
+
+.saving-banner.negative {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 2px solid #ef4444;
+}
+
+@media (max-width: 768px) {
+  .bonus-input-grid {
+    grid-template-columns: 1fr;
+  }
+  #bonusCustomResult .custom-comparison {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ===== クリック可能な行 ===== */
 .clickable-row {
   cursor: pointer;
